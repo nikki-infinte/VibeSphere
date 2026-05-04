@@ -1,4 +1,5 @@
 import heapq
+from datetime import datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -7,10 +8,13 @@ from app.models import Booking, Event
 
 
 def top_k_trending_events(db: Session, k: int = 10) -> list[Event]:
+    now = datetime.utcnow()
     rows = (
         db.query(Event, func.coalesce(func.sum(Booking.quantity), 0).label("booked"))
         .outerjoin(Booking, Booking.event_id == Event.id)
         .filter(Event.is_active.is_(True))
+        .filter(Event.event_date >= now)
+        .filter(Event.tickets_available > 0)
         .group_by(Event.id)
         .all()
     )

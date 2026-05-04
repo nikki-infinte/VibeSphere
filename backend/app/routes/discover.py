@@ -43,7 +43,13 @@ def nearby(
     candidates = q.all()
 
     filtered = [e for e in candidates if haversine_km(lat, lon, e.latitude, e.longitude) <= distance_km]
-    return sorted(filtered, key=lambda e: haversine_km(lat, lon, e.latitude, e.longitude))
+    if filtered:
+        return sorted(filtered, key=lambda e: haversine_km(lat, lon, e.latitude, e.longitude))
+
+    # Fallback: return closest active events if none found in requested radius.
+    all_events = db.query(Event).filter(Event.is_active.is_(True)).all()
+    all_events.sort(key=lambda e: haversine_km(lat, lon, e.latitude, e.longitude))
+    return all_events[:10]
 
 
 @router.get("/trending", response_model=list[EventOut])

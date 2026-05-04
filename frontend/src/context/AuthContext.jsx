@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import api from "../api/client";
+import { authAPI } from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -10,8 +10,8 @@ export function AuthProvider({ children }) {
   const loadUser = async () => {
     if (!token) return;
     try {
-      const { data } = await api.get("/auth/me");
-      setUser(data);
+      const response = await authAPI.getCurrentUser();
+      setUser(response.data);
     } catch {
       logout();
     }
@@ -23,15 +23,25 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("token", data.access_token);
-    setToken(data.access_token);
+    try {
+      const response = await authAPI.login({ email, password });
+      localStorage.setItem("token", response.data.access_token);
+      setToken(response.data.access_token);
+      await loadUser();
+    } catch (error) {
+      throw error;
+    }
   };
 
-  const signup = async (payload) => {
-    const { data } = await api.post("/auth/signup", payload);
-    localStorage.setItem("token", data.access_token);
-    setToken(data.access_token);
+  const register = async (userData) => {
+    try {
+      const response = await authAPI.register(userData);
+      localStorage.setItem("token", response.data.access_token);
+      setToken(response.data.access_token);
+      await loadUser();
+    } catch (error) {
+      throw error;
+    }
   };
 
   const logout = () => {
@@ -40,7 +50,11 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  return <AuthContext.Provider value={{ user, token, login, signup, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => useContext(AuthContext);

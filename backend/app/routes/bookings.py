@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -25,6 +27,11 @@ def create_booking(
         )
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        if event.event_date < datetime.utcnow():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Event is unavailable for booking",
+            )
         if event.tickets_available < payload.quantity:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Not enough tickets")
 

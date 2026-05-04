@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from math import asin, cos, radians, sin, sqrt
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def recommend_for_user(db: Session, user: User, limit: int = 8) -> list[Event]:
+    now = datetime.utcnow()
     preferences = defaultdict(int)
     interactions = db.query(UserEventInteraction).filter(UserEventInteraction.user_id == user.id).all()
     for interaction in interactions:
@@ -24,7 +26,13 @@ def recommend_for_user(db: Session, user: User, limit: int = 8) -> list[Event]:
         if event:
             preferences[event.category] += interaction.weight
 
-    candidates = db.query(Event).filter(Event.is_active.is_(True)).all()
+    candidates = (
+        db.query(Event)
+        .filter(Event.is_active.is_(True))
+        .filter(Event.event_date >= now)
+        .filter(Event.tickets_available > 0)
+        .all()
+    )
     ranking: list[tuple[float, Event]] = []
     for event in candidates:
         score = float(preferences[event.category])
